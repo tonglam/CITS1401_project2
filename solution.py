@@ -42,21 +42,25 @@ def t_test_score_minkowski_distance(data_list: list) -> dict:
     country_list = [x['country'] for x in data_list]
     country_list = list(set(country_list))
     for country in country_list:
+        # calculate t_test score
+        profit_2020_list = [int(y['profits in 2020(million)']) for y in data_list if y['country'] == country]
+        profit_2021_list = [int(y['profits in 2021(million)']) for y in data_list if y['country'] == country]
+        t_test_score = cal_t_test_score(profit_2020_list, profit_2021_list)
+        # calculate Minkowski distance
         number_of_employees_list = [int(y['number of employees']) for y in data_list if y['country'] == country]
         median_salary_list = [int(y['median salary']) for y in data_list if y['country'] == country]
-        t_test_score = cal_t_test_score(number_of_employees_list, median_salary_list)
         minkowski_distance = cal_minkowski_distance(number_of_employees_list, median_salary_list)
         return_dict[country] = [t_test_score, minkowski_distance]
     return return_dict
 
 
-def cal_t_test_score(number_of_employees_list: list, median_salary_list: list) -> float:
-    number_of_employees_size = len(number_of_employees_list)
-    median_salary_size = len(median_salary_list)
-    number_of_employees_mean = sum(number_of_employees_list) / number_of_employees_size
-    median_salary_mean = sum(median_salary_list) / median_salary_size
-    number_of_employees_sd = calculate_sd(number_of_employees_list)
-    median_salary_sd = calculate_sd(median_salary_list)
+def cal_t_test_score(profit_2020_list: list, profit_2021_list: list) -> float:
+    number_of_employees_size = len(profit_2020_list)
+    median_salary_size = len(profit_2021_list)
+    number_of_employees_mean = sum(profit_2020_list) / number_of_employees_size
+    median_salary_mean = sum(profit_2021_list) / median_salary_size
+    number_of_employees_sd = calculate_sd(profit_2020_list)
+    median_salary_sd = calculate_sd(profit_2021_list)
     molecule = number_of_employees_mean - median_salary_mean
     denominator = (
                           number_of_employees_sd ** 2 / number_of_employees_size + median_salary_sd ** 2 / median_salary_size) ** 0.5
@@ -138,4 +142,8 @@ def main(csvfile):
 
 if __name__ == '__main__':
     csvfile = './Organisations.csv'
-    print(main(csvfile))
+    output1, output2 = main(csvfile)
+    print(output1['brazil'])
+    print(output2['biotechnology'])
+    print(output1['afghanistan'])
+    print(output2['accounting'])
