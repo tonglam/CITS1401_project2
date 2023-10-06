@@ -22,45 +22,92 @@ def save_file_data(read_data: list) -> list:
     # save to a dictionary list
     for i in range(1, len(read_data)):
         line = read_data[i].lower().strip()
-        if invalid_data(line):
+        # empty line
+        if len(line) == 0:
             continue
         data = line.split(',')
         # save to a dictionary
         data_dict = dict(zip(header, data))
+        # ignore invalid data
+        if invalid_data(data_dict):
+            continue
+        # add valid data
         data_list.append(data_dict)
     return data_list
 
 
-def invalid_data(line: str) -> bool:
-    if len(line) == 0:
+def invalid_data(data_dict: dict) -> bool:
+    # check country
+    if 'country' not in data_dict or len(data_dict['country']) == 0:
         return True
-    # todo more invalid rules
+    # check category
+    if 'category' not in data_dict or len(data_dict['category']) == 0:
+        return True
+    # check organisation id
+    if 'organisation id' not in data_dict or len(data_dict['organisation id']) == 0:
+        return True
+    # check number of employees
+    if 'number of employees' not in data_dict or len(data_dict['number of employees']) == 0:
+        return True
+    # check median salary
+    if 'median salary' not in data_dict or len(data_dict['median salary']) == 0:
+        return True
+    # check profits in 2020(million)
+    if 'profits in 2020(million)' not in data_dict or len(data_dict['profits in 2020(million)']) == 0:
+        return True
+    # check profits in 2021(million)
+    if 'profits in 2021(million)' not in data_dict or len(data_dict['profits in 2021(million)']) == 0:
+        return True
+    return False
 
 
-def t_test_score_minkowski_distance(data_list: list) -> dict:
-    return_dict = {}
-    country_list = [x['country'] for x in data_list]
-    country_list = list(set(country_list))
-    for country in country_list:
+def save_data_in_dict(data_list: list, key_name: str) -> dict:
+    data_dict = {}
+    for data in data_list:
+        # extract key value
+        key = data[key_name]
+        if key not in data_dict:
+            # if key not exists, create a new value list
+            data_dict[key] = [data]
+        else:
+            # if key exists, append to the value list
+            value_data_list = data_dict[key]
+            value_data_list.append(data)
+            data_dict[key] = value_data_list
+    return data_dict
+
+
+def t_test_score_minkowski_distance(data_dict: dict) -> dict:
+    country_dict = {}
+    for country, country_data_list in data_dict.items():
         # calculate t_test score
-        profit_2020_list = [int(y['profits in 2020(million)']) for y in data_list if y['country'] == country]
-        profit_2021_list = [int(y['profits in 2021(million)']) for y in data_list if y['country'] == country]
-        t_test_score = cal_t_test_score(profit_2020_list, profit_2021_list)
+        t_test_score = cal_t_test_score(country_data_list)
         # calculate Minkowski distance
-        number_of_employees_list = [int(y['number of employees']) for y in data_list if y['country'] == country]
-        median_salary_list = [int(y['median salary']) for y in data_list if y['country'] == country]
-        minkowski_distance = cal_minkowski_distance(number_of_employees_list, median_salary_list)
-        return_dict[country] = [t_test_score, minkowski_distance]
-    return return_dict
+        minkowski_distance = cal_minkowski_distance(country_data_list, 3)
+        country_dict[country] = [t_test_score, minkowski_distance]
+    return country_dict
 
 
-def cal_t_test_score(profit_2020_list: list, profit_2021_list: list) -> float:
+def cal_t_test_score(data_list: list) -> float:
+    # get profits list
+    profit_2020_list = [int(x['profits in 2020(million)']) for x in data_list]
+    profit_2021_list = [int(x['profits in 2021(million)']) for x in data_list]
+    # sample size
     number_of_employees_size = len(profit_2020_list)
+    if number_of_employees_size == 0:
+        print("number_of_employees is 0, can not calculate t_test score")
+        return 0
     median_salary_size = len(profit_2021_list)
+    if median_salary_size == 0:
+        print("median_salary is 0, can not calculate t_test score")
+        return 0
+    # sample mean
     number_of_employees_mean = sum(profit_2020_list) / number_of_employees_size
     median_salary_mean = sum(profit_2021_list) / median_salary_size
+    # sample standard deviation
     number_of_employees_sd = calculate_sd(profit_2020_list)
     median_salary_sd = calculate_sd(profit_2021_list)
+    # calculate t-test score
     molecule = number_of_employees_mean - median_salary_mean
     denominator = (
                           number_of_employees_sd ** 2 / number_of_employees_size + median_salary_sd ** 2 / median_salary_size) ** 0.5
@@ -68,6 +115,9 @@ def cal_t_test_score(profit_2020_list: list, profit_2021_list: list) -> float:
 
 
 def calculate_sd(data_list: list) -> float:
+    # check input size
+    if len(data_list) <= 1:
+        return 0
     # calculate length
     length = len(data_list)
     # calculate mean
@@ -77,35 +127,48 @@ def calculate_sd(data_list: list) -> float:
     return (diff_sq_sum / (length - 1)) ** 0.5
 
 
-def cal_minkowski_distance(number_of_employees_list: list, median_salary_list: list) -> float:
+def cal_minkowski_distance(data_list: list, similarity: int) -> float:
+    if similarity == 0:
+        print("similarity is 0, can not calculate Minkowski distance")
+        return 0
+    # get number of employees list and median salary list
+    number_of_employees_list = [int(x['number of employees']) for x in data_list]
+    median_salary_list = [int(x['median salary']) for x in data_list]
+    # calculate Minkowski distance
     distance_list = []
     for i in range(len(number_of_employees_list)):
-        distance_list.append((abs(number_of_employees_list[i] - median_salary_list[i])) ** 3)
-    return round(sum(distance_list) ** (1 / 3), 4)
+        distance_list.append((abs(number_of_employees_list[i] - median_salary_list[i])) ** similarity)
+    return round(sum(distance_list) ** (1 / similarity), 4)
 
 
-def create_category_dictionary(data_list: list) -> dict:
+def create_category_dictionary(data_dict: dict) -> dict:
     category_dict = {}
-    category_list = [x['category'] for x in data_list]
-    category_list = list(set(category_list))
-    for category in category_list:
-        organisation_dict = {}
-        organisation_list = [x['organisation id'] for x in data_list if x['category'] == category]
-        organisation_data_list = [x for x in data_list if
-                                  x['organisation id'] in organisation_list and x['category'] == category]
-        organisation_rank_dict = cal_rank_of_organisation(organisation_data_list)
-        for organisation_data in organisation_data_list:
-            organisation_id = organisation_data['organisation id']
+    for category, category_data_list in data_dict.items():
+        # get organisation data in the category
+        organisation_dict = save_data_in_dict(category_data_list, "organisation id")
+        # rank of organisation
+        organisation_rank_dict = cal_rank_of_organisation(category_data_list)
+        for organisation_id, organisation_data_list in organisation_dict.items():
+            # get organisation data, if there are multiple data, use the first one
+            organisation_data = organisation_data_list[0]
             number_of_employees = int(organisation_data['number of employees'])
             absolute_profit_change = cal_absolute_profit_change(organisation_data)
             rank_of_organisation = organisation_rank_dict[organisation_id]
+            # save data to the organisation dictionary
             organisation_dict[organisation_id] = [number_of_employees, absolute_profit_change, rank_of_organisation]
+        # save data to the category dictionary
         category_dict[category] = organisation_dict
     return category_dict
 
 
-def cal_rank_of_organisation(organisation_list: list) -> dict:
-    rank_list = sorted(organisation_list, key=lambda x: (-int(x['number of employees']), x['name']))
+def cal_rank_of_organisation(category_data_list: list) -> dict:
+    # add profits_change to the data for sorting
+    for data in category_data_list:
+        profit_change = int(data['profits in 2020(million)']) - int(data['profits in 2021(million)'])
+        data['profits_change'] = profit_change
+    # sort by number of employees desc and then profits_change desc
+    rank_list = sorted(category_data_list, key=lambda x: (-int(x['number of employees']), -x['profits_change']))
+    # create the rank dictionary, rank starts from 1
     rank_dict = {}
     for i in range(len(rank_list)):
         rank_dict[rank_list[i]['organisation id']] = i + 1
@@ -133,10 +196,14 @@ def main(csvfile):
     if len(data_list) == 0:
         print("Input file:[] contains no data" % csvfile)
         return {}, {}
-    # t_test score and Minkowski distance
-    country_dict = t_test_score_minkowski_distance(data_list)
-    # create category dictionary
-    category_dict = create_category_dictionary(data_list)
+    # store data in a dictionary with country as key
+    data_dict = save_data_in_dict(data_list, "country")
+    # t_test score and Minkowski distance in each country
+    country_dict = t_test_score_minkowski_distance(data_dict)
+    # store data in a dictionary with category as key
+    data_dict = save_data_in_dict(data_list, "category")
+    # nested dictionary with category as key and organisation id as key
+    category_dict = create_category_dictionary(data_dict)
     return country_dict, category_dict
 
 
