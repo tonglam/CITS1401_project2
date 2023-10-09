@@ -20,6 +20,8 @@ def save_file_data(read_data: list) -> list:
     # get csv header
     header = read_data[0].lower().strip().split(',')
     # save to a dictionary list
+    organisation_id_set = set()
+    organisation_duplicate_id_set = set()
     for i in range(1, len(read_data)):
         line = read_data[i].lower().strip()
         # empty line
@@ -28,35 +30,62 @@ def save_file_data(read_data: list) -> list:
         data = line.split(',')
         # save to a dictionary
         data_dict = dict(zip(header, data))
+        # get organisation id
+        organisation_id = data_dict['organisation id']
+        if organisation_id not in organisation_id_set:
+            organisation_id_set.add(organisation_id)
+        elif organisation_id not in organisation_duplicate_id_set:
+            organisation_duplicate_id_set.add(organisation_id)
         # ignore invalid data
         if invalid_data(data_dict):
             continue
         # add valid data
         data_list.append(data_dict)
+    # omit duplicate organisation id datas
+    if len(organisation_duplicate_id_set) > 0:
+        print("Duplicate organisation id:{}".format(organisation_duplicate_id_set))
+        data_list = [x for x in data_list if x['organisation id'] not in organisation_duplicate_id_set]
     return data_list
 
 
 def invalid_data(data_dict: dict) -> bool:
     # check country
-    if 'country' not in data_dict or len(data_dict['country']) == 0:
+    if 'country' not in data_dict.keys() or len(data_dict['country']) == 0:
+        print("Invalid country, data:{}".format(data_dict))
         return True
     # check category
-    if 'category' not in data_dict or len(data_dict['category']) == 0:
+    if 'category' not in data_dict.keys() or len(data_dict['category']) == 0:
+        print("Invalid category, data:{}".format(data_dict))
         return True
-    # check organisation id
-    if 'organisation id' not in data_dict or len(data_dict['organisation id']) == 0:
+    # check organisation id, alphanumeric only
+    if ('organisation id' not in data_dict.keys()
+            or len(data_dict['organisation id']) == 0
+            or not data_dict['organisation id'].isalnum()):
+        print("Invalid organisation id, data:{}".format(data_dict))
         return True
-    # check number of employees
-    if 'number of employees' not in data_dict or len(data_dict['number of employees']) == 0:
+    # check number of employees, numeric only
+    if ('number of employees' not in data_dict.keys()
+            or len(data_dict['number of employees']) == 0
+            or not data_dict['number of employees'].isnumeric()):
+        print("Invalid number of employees, data:{}".format(data_dict))
         return True
-    # check median salary
-    if 'median salary' not in data_dict or len(data_dict['median salary']) == 0:
+    # check median salary, numeric only
+    if ('median salary' not in data_dict.keys()
+            or len(data_dict['median salary']) == 0
+            or not data_dict['median salary'].isnumeric()):
+        print("Invalid median salary, data:{}".format(data_dict))
         return True
-    # check profits in 2020(million)
-    if 'profits in 2020(million)' not in data_dict or len(data_dict['profits in 2020(million)']) == 0:
+    # check profits in 2020(million), numeric only
+    if ('profits in 2020(million)' not in data_dict.keys()
+            or len(data_dict['profits in 2020(million)']) == 0
+            or not data_dict['profits in 2020(million)'].isnumeric()):
+        print("Invalid profits in 2020(million), data:{}".format(data_dict))
         return True
-    # check profits in 2021(million)
-    if 'profits in 2021(million)' not in data_dict or len(data_dict['profits in 2021(million)']) == 0:
+    # check profits in 2021(million), numeric only
+    if ('profits in 2021(million)' not in data_dict.keys()
+            or len(data_dict['profits in 2021(million)']) == 0
+            or not data_dict['profits in 2021(million)'].isnumeric()):
+        print("Invalid profits in 2021(million), data:{}".format(data_dict))
         return True
     return False
 
@@ -141,21 +170,23 @@ def cal_minkowski_distance(data_list: list, similarity: int) -> float:
     return round(sum(distance_list) ** (1 / similarity), 4)
 
 
-def create_category_dictionary(data_dict: dict) -> dict:
+def category_dictionary(data_dict: dict) -> dict:
     category_dict = {}
     for category, category_data_list in data_dict.items():
-        # get organisation data in the category
-        organisation_dict = save_data_in_dict(category_data_list, "organisation id")
         # rank of organisation
         organisation_rank_dict = cal_rank_of_organisation(category_data_list)
+        # get organisation data in the category
+        organisation_dict = save_data_in_dict(category_data_list, "organisation id")
         for organisation_id, organisation_data_list in organisation_dict.items():
             # get organisation data, if there are multiple data, use the first one
             organisation_data = organisation_data_list[0]
             number_of_employees = int(organisation_data['number of employees'])
-            absolute_profit_change = cal_absolute_profit_change(organisation_data)
+            profit_in_2020 = int(organisation_data['profits in 2020(million)'])
+            absolute_profit_change = organisation_data['absolute_profit_change']
+            profit_percent_change = round(cal_absolute_profit_change(absolute_profit_change, profit_in_2020), 4)
             rank_of_organisation = organisation_rank_dict[organisation_id]
             # save data to the organisation dictionary
-            organisation_dict[organisation_id] = [number_of_employees, absolute_profit_change, rank_of_organisation]
+            organisation_dict[organisation_id] = [number_of_employees, profit_percent_change, rank_of_organisation]
         # save data to the category dictionary
         category_dict[category] = organisation_dict
     return category_dict
@@ -164,10 +195,10 @@ def create_category_dictionary(data_dict: dict) -> dict:
 def cal_rank_of_organisation(category_data_list: list) -> dict:
     # add profits_change to the data for sorting
     for data in category_data_list:
-        profit_change = int(data['profits in 2020(million)']) - int(data['profits in 2021(million)'])
-        data['profits_change'] = profit_change
+        data['absolute_profit_change'] = abs(
+            int(data['profits in 2020(million)']) - int(data['profits in 2021(million)']))
     # sort by number of employees desc and then profits_change desc
-    rank_list = sorted(category_data_list, key=lambda x: (-int(x['number of employees']), -x['profits_change']))
+    rank_list = sorted(category_data_list, key=lambda x: (-int(x['number of employees']), -x['absolute_profit_change']))
     # create the rank dictionary, rank starts from 1
     rank_dict = {}
     for i in range(len(rank_list)):
@@ -175,10 +206,8 @@ def cal_rank_of_organisation(category_data_list: list) -> dict:
     return rank_dict
 
 
-def cal_absolute_profit_change(data: dict) -> float:
-    profit_2020 = int(data['profits in 2020(million)'])
-    profit_2021 = int(data['profits in 2021(million)'])
-    return round((abs(profit_2021 - profit_2020) / profit_2020) * 100, 4)
+def cal_absolute_profit_change(absolute_profit_change: float, profit_2020: int) -> float:
+    return (absolute_profit_change / profit_2020) * 100
 
 
 def main(csvfile):
@@ -189,12 +218,12 @@ def main(csvfile):
     # read file
     read_data = read_file(csvfile)
     if read_data is None or len(read_data) == 0:
-        print("Input file:[] is empty or not exists" % csvfile)
+        print("Input file:[] is empty or not exists".format(csvfile))
         return {}, {}
     # store data to a list and filter by country
     data_list = save_file_data(read_data)
     if len(data_list) == 0:
-        print("Input file:[] contains no data" % csvfile)
+        print("Input file:[] contains no data".format(csvfile))
         return {}, {}
     # store data in a dictionary with country as key
     data_dict = save_data_in_dict(data_list, "country")
@@ -203,14 +232,5 @@ def main(csvfile):
     # store data in a dictionary with category as key
     data_dict = save_data_in_dict(data_list, "category")
     # nested dictionary with category as key and organisation id as key
-    category_dict = create_category_dictionary(data_dict)
+    category_dict = category_dictionary(data_dict)
     return country_dict, category_dict
-
-
-if __name__ == '__main__':
-    csvfile = './Organisations.csv'
-    output1, output2 = main(csvfile)
-    print(output1['brazil'])
-    print(output2['biotechnology'])
-    print(output1['afghanistan'])
-    print(output2['accounting'])
