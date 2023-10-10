@@ -136,6 +136,8 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
             organisation_duplicate_id_set.add(organisation_id)
         csv_data.append(data_dict)
     clean_file = "cleaned.csv"
+    if organisation_duplicate_id_set.__contains__(""):
+        organisation_duplicate_id_set.remove("")
     if len(organisation_duplicate_id_set) > 0:
         csv_data = [x for x in csv_data if x['organisation id'] not in organisation_duplicate_id_set]
     write_data = [",".join(header) + "\n"] + [",".join(x.values()) + "\n" for x in csv_data]
@@ -143,7 +145,8 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
         f.writelines(write_data)
 
     # import clean data
-    column_order_list = ['organisation id', 'name', 'website', 'country', 'founded', 'category', 'number of employees', 'median salary', 'profits in 2020(million)', 'profits in 2021(million)']
+    column_order_list = ['organisation id', 'name', 'website', 'country', 'founded', 'category', 'number of employees',
+                         'median salary', 'profits in 2020(million)', 'profits in 2021(million)']
     with open(clean_file, 'r') as file:
         reader = csv.reader(file)
         header = next(reader)
@@ -161,7 +164,7 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
                 cursor.execute('INSERT INTO Organisations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);', processed_row)
                 conn.commit()
             except sqlite3.Error:
-                print("Error: insert data failed:[{}]".format(row))
+                print("Error: insert data failed: {}".format(row))
 
 
 def get_duplicated_organisation_id(csvfile: str) -> set:
@@ -375,51 +378,58 @@ def check_missing_values_file() -> None:
     for sample_data_index in random.sample(sample_index_list, 20):
         # organisation id, TEXT
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[0] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     for sample_data_index in random.sample(sample_index_list, 20):
         # country, TEXT
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[3] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     for sample_data_index in random.sample(sample_index_list, 20):
         # category, TEXT
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[5] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     for sample_data_index in random.sample(sample_index_list, 20):
         # number of employees, INTEGER
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[6] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     for sample_data_index in random.sample(sample_index_list, 20):
         # median salary, INTEGER
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[7] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     for sample_data_index in random.sample(sample_index_list, 20):
         # profits in 2020(million), INTEGER
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[8] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     for sample_data_index in random.sample(sample_index_list, 20):
         # profits in 2021(million), INTEGER
         sample_data = data[sample_data_index]
+        sample_data = sample_data.replace("\n", "")
         sample_data = sample_data.split(',')
         sample_data[9] = ''
-        sample_data = ",".join(str(x) for x in sample_data)
+        sample_data = ",".join(str(x) for x in sample_data) + "\n"
         data[sample_data_index] = sample_data
     csv_data.extend(data)
     # write file
@@ -601,8 +611,7 @@ def run_test_case(csvfile: str = default_csvfile) -> None:
     # check
     actual_country_dict, actual_category_dict = solution.main(csvfile)
     if len(actual_country_dict) == 0 or len(actual_category_dict) == 0:
-        print("No data is returned")
-        return
+        raise Exception("No data is returned")
     # import file data as a sqlite database
     import_data(cursor, conn, csvfile)
     # t_test_score and minkowski_distance
@@ -631,10 +640,10 @@ def test_one_case() -> None:
 def test_special_files() -> None:
     print("\nstart testing special file\n")
     # test
-    check_empty_with_header_file()
+    # check_empty_with_header_file()
     # check_empty_without_header_file()
     # check_case_insensitive_header_file()
-    # check_missing_values_file()
+    check_missing_values_file()
     # check_duplicate_organisation_id_file()
     # check_disordered_header_file()
     print("finish testing special file")
