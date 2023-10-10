@@ -188,6 +188,7 @@ def category_dictionary(data_dict: dict) -> dict:
             # save data to the organisation dictionary
             organisation_dict[organisation_id] = [number_of_employees, profit_percent_change, rank_of_organisation]
         # save data to the category dictionary
+        organisation_dict = dict(sorted(organisation_dict.items(), key=lambda x: x[1][2]))
         category_dict[category] = organisation_dict
     return category_dict
 
@@ -198,7 +199,8 @@ def cal_rank_of_organisation(category_data_list: list) -> dict:
         data['absolute_profit_change'] = abs(
             int(data['profits in 2020(million)']) - int(data['profits in 2021(million)']))
     # sort by number of employees desc and then profits_change desc
-    rank_list = sorted(category_data_list, key=lambda x: (-int(x['number of employees']), -x['absolute_profit_change']))
+    rank_list = sorted(category_data_list, key=lambda x: (int(x['number of employees']), x['absolute_profit_change']),
+                       reverse=True)
     # create the rank dictionary, rank starts from 1
     rank_dict = {}
     for i in range(len(rank_list)):

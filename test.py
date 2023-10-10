@@ -15,7 +15,7 @@ default_db = "./Organisations.db"
 fake = Faker()
 
 
-def get_headers():
+def get_headers() -> str:
     with open(default_csvfile, 'r') as f:
         read_data = f.readlines()
         header = read_data[0].lower().strip().split(',')
@@ -79,6 +79,7 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
                             "median Salary",
                             "profits in 2020(million)",
                             "profits in 2021(million)",
+                            "profits in 2020(million)" - "profits in 2021(million)" AS "profit change",
                             abs("profits in 2020(million)" - "profits in 2021(million)") AS "absolute profit change",
                             round(abs("profits in 2020(million)" - "profits in 2021(million)") / ("profits in 2020(million)" * 1.0) * 100, 4) AS "profit percent change"
                     FROM Organisations
@@ -155,7 +156,7 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
                 print("Error: insert data failed:[{}]".format(row))
 
 
-def get_duplicated_organisation_id(csvfile):
+def get_duplicated_organisation_id(csvfile: str) -> set:
     with open(csvfile, 'r') as f:
         read_data = f.readlines()
     # get csv header
@@ -419,7 +420,7 @@ def check_missing_values_file() -> None:
     os.remove(missing_values_file)
 
 
-def check_duplicate_organisation_id_file():
+def check_duplicate_organisation_id_file() -> None:
     # input file with duplicate organisation id
     duplicate_organisation_id_file = "./duplicate_organisation_id.csv"
     # check file exists
@@ -452,7 +453,7 @@ def check_duplicate_organisation_id_file():
     os.remove(duplicate_organisation_id_file)
 
 
-def check_disordered_header_file():
+def check_disordered_header_file() -> None:
     # input file with disordered header
     disordered_header_file = "./disordered_header.csv"
     # check file exists
@@ -481,23 +482,44 @@ def check_disordered_header_file():
     os.remove(disordered_header_file)
 
 
-def create_country_dict_edge_test_cases(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None:
+def check_edge_test_cases() -> None:
+    # input file with edge cases
+    edge_cases_file = "./edge_cases.csv"
+    # check file exists
+    write_data = [get_headers()]
+    if os.path.exists(edge_cases_file):
+        os.remove(edge_cases_file)
+    country_dict_cases_list = create_country_dict_edge_test_cases()
+    if len(country_dict_cases_list) > 0:
+        for country_dict_case in country_dict_cases_list:
+            write_data.append(country_dict_case.__str__())
+    category_dict_cases_list = create_category_dict_edge_test_cases()
+    if len(category_dict_cases_list) > 0:
+        for category_dict_case in category_dict_cases_list:
+            write_data.append(category_dict_case.__str__())
+    # write file
+    with open(edge_cases_file, 'w') as f:
+        f.writelines(write_data)
+    # run test
+    run_test_case(edge_cases_file)
+    # remove file
+    # os.remove(edge_cases_file)
+
+
+def create_country_dict_edge_test_cases() -> list:
+    edge_test_cases_list = []
     # country contains only one organisation
-    organisations_record = fake_organisations_data(country="test country 1")
-    print(organisations_record.__str__())
+    organisations_record_1 = fake_organisations_data(country="test_country_1")
+    edge_test_cases_list.append(organisations_record_1)
+    # sd eq 0
+    organisations_record_2 = fake_organisations_data(country="test_country_2")
+    edge_test_cases_list.append(organisations_record_2)
+    edge_test_cases_list
+    return edge_test_cases_list
 
 
-def create_category_dict_edge_test_cases(conn: sqlite3.Connection, cursor: sqlite3.Cursor) -> None:
-    pass
-
-
-def create_edge_test_cases():
-    conn = sqlite3.connect(default_db)
-    cursor = conn.cursor()
-    create_country_dict_edge_test_cases(conn, cursor)
-    create_category_dict_edge_test_cases(conn, cursor)
-    cursor.close()
-    conn.close()
+def create_category_dict_edge_test_cases() -> list:
+    return []
 
 
 def run_test_case(csvfile: str = default_csvfile) -> None:
@@ -535,12 +557,12 @@ def test_one_case() -> None:
 def test_special_files() -> None:
     print("\nstart testing special file\n")
     # test
-    # check_empty_with_header_file()
-    # check_empty_without_header_file()
-    # check_case_insensitive_header_file()
+    check_empty_with_header_file()
+    check_empty_without_header_file()
+    check_case_insensitive_header_file()
     check_missing_values_file()
-    # check_duplicate_organisation_id_file()
-    # check_disordered_header_file()
+    check_duplicate_organisation_id_file()
+    check_disordered_header_file()
     print("finish testing special file")
 
 
@@ -548,6 +570,10 @@ def test_special_files() -> None:
 def test_edge_cases() -> None:
     print("\nstart testing edge cases\n")
     # test
-    create_edge_test_cases()
-    # run_test_case()
+    check_edge_test_cases()
     print("finish testing edge cases")
+
+# def test() -> None:
+# test_one_case()
+# test_special_files()
+# test_edge_cases()
