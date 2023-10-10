@@ -115,6 +115,8 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
     with open(csvfile, 'r') as f:
         read_data = f.readlines()
     # get csv header
+    if len(read_data) == 0:
+        return
     header = read_data[0].lower().strip().split(',')
     csv_data = []
     # save to a dictionary list
@@ -611,7 +613,7 @@ def run_test_case(csvfile: str = default_csvfile) -> None:
     # check
     actual_country_dict, actual_category_dict = solution.main(csvfile)
     if len(actual_country_dict) == 0 or len(actual_category_dict) == 0:
-        raise Exception("No data is returned")
+        print("solution: No data is returned")
     # import file data as a sqlite database
     import_data(cursor, conn, csvfile)
     # t_test_score and minkowski_distance
