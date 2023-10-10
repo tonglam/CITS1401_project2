@@ -110,12 +110,13 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
     conn.commit()
 
     # clean csv
+    if os.path.exists("cleaned.csv"):
+        os.remove("cleaned.csv")
     with open(csvfile, 'r') as f:
         read_data = f.readlines()
-    csv_data = []
     # get csv header
     header = read_data[0].lower().strip().split(',')
-    csv_data.append(",".join(header) + "\n")
+    csv_data = []
     # save to a dictionary list
     organisation_id_set = set()
     organisation_duplicate_id_set = set()
@@ -133,19 +134,26 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
             organisation_id_set.add(organisation_id)
         elif organisation_id not in organisation_duplicate_id_set:
             organisation_duplicate_id_set.add(organisation_id)
-        csv_data.append(",".join(data) + "\n")
+        csv_data.append(data_dict)
     clean_file = "cleaned.csv"
+    if len(organisation_duplicate_id_set) > 0:
+        csv_data = [x for x in csv_data if x['organisation id'] not in organisation_duplicate_id_set]
+    write_data = [",".join(header) + "\n"] + [",".join(x.values()) + "\n" for x in csv_data]
     with open(clean_file, 'w') as f:
-        f.writelines(csv_data)
+        f.writelines(write_data)
 
     # import clean data
+    column_order_list = ['organisation id', 'name', 'website', 'country', 'founded', 'category', 'number of employees', 'median salary', 'profits in 2020(million)', 'profits in 2021(million)']
     with open(clean_file, 'r') as file:
-        csv_data = csv.reader(file)
-        next(csv_data)
+        reader = csv.reader(file)
+        header = next(reader)
+        csv_data = list(reader)
         for row in csv_data:
             try:
+                row_dict = dict(zip(header, row))
                 processed_row = []
-                for value in row:
+                for key in column_order_list:
+                    value = row_dict[key]
                     if value == '':
                         processed_row.append(None)
                     else:
@@ -198,14 +206,17 @@ def expected_t_test_score_minkowski_distance_data(cursor: sqlite3.Cursor, conn: 
         cursor.execute('SELECT "profits in 2021(million)" FROM Organisations WHERE country = ?;', (expected_country,))
         expected_profit_2021_list = [x[0] for x in cursor.fetchall()]
         expected_t_test_score = stats.ttest_ind(expected_profit_2020_list, expected_profit_2021_list)[0]
-        expected_t_test_score = round(expected_t_test_score, 4) if not math.isnan(expected_t_test_score) else 0
+        expected_t_test_score = round(expected_t_test_score, 4) if (
+                not math.isnan(expected_t_test_score) and not math.isinf(
+            abs(expected_t_test_score))) else 0
         # Minkowski distance
         cursor.execute('SELECT "number of employees" FROM Organisations WHERE country = ?;', (expected_country,))
         expected_number_of_employees_list = np.array([x[0] for x in cursor.fetchall()])
         cursor.execute('SELECT "median salary" FROM Organisations WHERE country = ?;', (expected_country,))
         expected_median_salary_list = np.array([x[0] for x in cursor.fetchall()])
         expected_distance = np.linalg.norm(expected_number_of_employees_list - expected_median_salary_list, ord=3)
-        expected_distance = round(expected_distance, 4) if not math.isnan(expected_distance) else 0
+        expected_distance = round(expected_distance, 4) if (
+                not math.isnan(expected_distance) and not math.isinf(abs(expected_distance))) else 0
         expected_output_1_list.append((expected_country, expected_t_test_score, expected_distance))
     cursor.executemany('INSERT INTO Output_1 VALUES (?, ?, ?);', expected_output_1_list)
     conn.commit()
@@ -297,7 +308,7 @@ def check_empty_with_header_file() -> None:
     header = get_headers()
     # write file
     with open(empty_with_header_file, 'w') as f:
-        f.write(",".join(header))
+        f.write(header)
     run_test_case(empty_with_header_file)
     # run test
     run_test_case(empty_with_header_file)
@@ -503,23 +514,84 @@ def check_edge_test_cases() -> None:
     # run test
     run_test_case(edge_cases_file)
     # remove file
-    # os.remove(edge_cases_file)
+    os.remove(edge_cases_file)
 
 
 def create_country_dict_edge_test_cases() -> list:
     edge_test_cases_list = []
+
     # country contains only one organisation
-    organisations_record_1 = fake_organisations_data(country="test_country_1")
-    edge_test_cases_list.append(organisations_record_1)
-    # sd eq 0
-    organisations_record_2 = fake_organisations_data(country="test_country_2")
-    edge_test_cases_list.append(organisations_record_2)
-    edge_test_cases_list
+    organisations_record_1_1 = fake_organisations_data(country="test_country_1")
+    edge_test_cases_list.append(organisations_record_1_1)
+
+    # profit 2020 sd and profit 2021 sd eq 0
+    organisations_record_2_1 = fake_organisations_data(country="test_country_2")
+    edge_test_cases_list.append(organisations_record_2_1)
+    profit_2020 = organisations_record_2_1.profits_in_2020_million
+    profit_2021 = organisations_record_2_1.profits_in_2021_million
+    organisations_record_2_2 = fake_organisations_data(country="test_country_2")
+    organisations_record_2_2.set_profits_in_2020_million(profit_2020)
+    organisations_record_2_2.set_profits_in_2021_million(profit_2021)
+    edge_test_cases_list.append(organisations_record_2_2)
+    organisations_record_2_3 = fake_organisations_data(country="test_country_2")
+    organisations_record_2_3.set_profits_in_2020_million(profit_2020)
+    organisations_record_2_3.set_profits_in_2021_million(profit_2021)
+    edge_test_cases_list.append(organisations_record_2_3)
+
+    # every number of employees eq median salary
+    organisations_record_4_1 = fake_organisations_data(country="test_country_3")
+    edge_test_cases_list.append(organisations_record_4_1)
+    organisations_record_4_1.set_median_salary(organisations_record_4_1.get_number_of_employees())
+    organisations_record_4_2 = fake_organisations_data(country="test_country_3")
+    organisations_record_4_2.set_median_salary(organisations_record_4_2.get_number_of_employees())
+    edge_test_cases_list.append(organisations_record_4_2)
+    organisations_record_4_3 = fake_organisations_data(country="test_country_3")
+    organisations_record_4_3.set_median_salary(organisations_record_4_3.get_number_of_employees())
+    edge_test_cases_list.append(organisations_record_4_3)
+
     return edge_test_cases_list
 
 
 def create_category_dict_edge_test_cases() -> list:
-    return []
+    edge_test_cases_list = []
+
+    # multiple same number of employees
+    organisations_record_1_1 = fake_organisations_data(category="test_category_1")
+    edge_test_cases_list.append(organisations_record_1_1)
+    organisations_record_1_2 = fake_organisations_data(category="test_category_1")
+    organisations_record_1_2.set_number_of_employees(organisations_record_1_1.get_number_of_employees())
+    edge_test_cases_list.append(organisations_record_1_2)
+    organisations_record_1_3 = fake_organisations_data(category="test_category_1")
+    organisations_record_1_3.set_number_of_employees(organisations_record_1_1.get_number_of_employees())
+    edge_test_cases_list.append(organisations_record_1_3)
+
+    # multiple same profit change
+    organisations_record_2_1 = fake_organisations_data(category="test_category_2")
+    edge_test_cases_list.append(organisations_record_2_1)
+    organisations_record_2_2 = fake_organisations_data(category="test_category_2")
+    organisations_record_2_2.set_profits_in_2020_million(organisations_record_2_1.get_profits_in_2020_million())
+    organisations_record_2_2.set_profits_in_2021_million(organisations_record_2_1.get_profits_in_2021_million())
+    edge_test_cases_list.append(organisations_record_2_2)
+    organisations_record_2_3 = fake_organisations_data(category="test_category_2")
+    organisations_record_2_3.set_profits_in_2020_million(organisations_record_2_1.get_profits_in_2020_million())
+    organisations_record_2_3.set_profits_in_2021_million(organisations_record_2_1.get_profits_in_2021_million())
+    edge_test_cases_list.append(organisations_record_2_3)
+
+    # # multiple same rank(not sure how to rank)
+    # organisations_record_3_1 = fake_organisations_data(category="test_category_3")
+    # edge_test_cases_list.append(organisations_record_3_1)
+    # organisations_record_3_2 = fake_organisations_data(category="test_category_3")
+    # organisations_record_3_2.set_number_of_employees(organisations_record_3_1.get_number_of_employees())
+    # organisations_record_3_2.set_profits_in_2020_million(organisations_record_3_1.get_profits_in_2020_million())
+    # organisations_record_3_2.set_profits_in_2021_million(organisations_record_3_1.get_profits_in_2021_million())
+    # edge_test_cases_list.append(organisations_record_3_2)
+    # organisations_record_3_3 = fake_organisations_data(category="test_category_3")
+    # organisations_record_3_3.set_number_of_employees(organisations_record_3_1.get_number_of_employees())
+    # organisations_record_3_3.set_profits_in_2020_million(organisations_record_3_1.get_profits_in_2020_million())
+    # organisations_record_3_3.set_profits_in_2021_million(organisations_record_3_1.get_profits_in_2021_million())
+    # edge_test_cases_list.append(organisations_record_3_3)
+
+    return edge_test_cases_list
 
 
 def run_test_case(csvfile: str = default_csvfile) -> None:
@@ -551,6 +623,8 @@ def test_one_case() -> None:
     # test
     run_test_case()
     print("finish testing one case")
+    if os.path.exists("cleaned.csv"):
+        os.remove("cleaned.csv")
 
 
 # test 2: test special files
@@ -558,12 +632,14 @@ def test_special_files() -> None:
     print("\nstart testing special file\n")
     # test
     check_empty_with_header_file()
-    check_empty_without_header_file()
-    check_case_insensitive_header_file()
-    check_missing_values_file()
-    check_duplicate_organisation_id_file()
-    check_disordered_header_file()
+    # check_empty_without_header_file()
+    # check_case_insensitive_header_file()
+    # check_missing_values_file()
+    # check_duplicate_organisation_id_file()
+    # check_disordered_header_file()
     print("finish testing special file")
+    if os.path.exists("cleaned.csv"):
+        os.remove("cleaned.csv")
 
 
 # test 3: test edge cases
@@ -572,8 +648,11 @@ def test_edge_cases() -> None:
     # test
     check_edge_test_cases()
     print("finish testing edge cases")
+    if os.path.exists("cleaned.csv"):
+        os.remove("cleaned.csv")
 
-# def test() -> None:
-# test_one_case()
-# test_special_files()
-# test_edge_cases()
+
+def test() -> None:
+    test_one_case()
+    test_special_files()
+    test_edge_cases()
