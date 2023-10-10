@@ -640,12 +640,12 @@ def test_one_case() -> None:
 def test_special_files() -> None:
     print("\nstart testing special file\n")
     # test
-    # check_empty_with_header_file()
-    # check_empty_without_header_file()
-    # check_case_insensitive_header_file()
+    check_empty_with_header_file()
+    check_empty_without_header_file()
+    check_case_insensitive_header_file()
     check_missing_values_file()
-    # check_duplicate_organisation_id_file()
-    # check_disordered_header_file()
+    check_duplicate_organisation_id_file()
+    check_disordered_header_file()
     print("finish testing special file")
     if os.path.exists("cleaned.csv"):
         os.remove("cleaned.csv")
