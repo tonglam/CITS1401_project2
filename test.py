@@ -77,10 +77,6 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
                             "organisation id",
                             "number of employees",
                             "median Salary",
-                            "profits in 2020(million)",
-                            "profits in 2021(million)",
-                            "profits in 2020(million)" - "profits in 2021(million)" AS "profit change",
-                            abs("profits in 2020(million)" - "profits in 2021(million)") AS "absolute profit change",
                             round(abs("profits in 2020(million)" - "profits in 2021(million)") / ("profits in 2020(million)" * 1.0) * 100, 4) AS "profit percent change"
                     FROM Organisations
                     GROUP BY category, "organisation id";
@@ -266,7 +262,7 @@ def expected_category_dict_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection
         for expected_organisation in expected_organisation_list:
             # expected rank
             cursor.execute('''
-                                select "organisation id", RANK() OVER (ORDER BY "number of employees" DESC, "absolute profit change" DESC) AS rank
+                                select "organisation id", RANK() OVER (ORDER BY "number of employees" DESC, "profit percent change" DESC) AS rank
                                 from CategoryOrganisations
                                 where category = ?
                                 order by "number of employees" desc, "absolute profit change" desc;
