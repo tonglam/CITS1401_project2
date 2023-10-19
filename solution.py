@@ -63,31 +63,39 @@ def invalid_data(data_dict: dict) -> bool:
             or not data_dict['organisation id'].isalnum()):
         print("Invalid organisation id, data:{}".format(data_dict))
         return True
-    # check number of employees, numeric only
+    # check number of employees, integer only
     if ('number of employees' not in data_dict.keys()
             or len(data_dict['number of employees']) == 0
             or not data_dict['number of employees'].isnumeric()):
         print("Invalid number of employees, data:{}".format(data_dict))
         return True
-    # check median salary, numeric only
+    # check median salary, float only
     if ('median salary' not in data_dict.keys()
             or len(data_dict['median salary']) == 0
-            or not data_dict['median salary'].isnumeric()):
+            or not is_float(data_dict['median salary'])):
         print("Invalid median salary, data:{}".format(data_dict))
         return True
-    # check profits in 2020(million), numeric only
+    # check profits in 2020(million), float only
     if ('profits in 2020(million)' not in data_dict.keys()
             or len(data_dict['profits in 2020(million)']) == 0
-            or not data_dict['profits in 2020(million)'].isnumeric()):
+            or not is_float(data_dict['profits in 2020(million)'])):
         print("Invalid profits in 2020(million), data:{}".format(data_dict))
         return True
-    # check profits in 2021(million), numeric only
+    # check profits in 2021(million), float only
     if ('profits in 2021(million)' not in data_dict.keys()
             or len(data_dict['profits in 2021(million)']) == 0
-            or not data_dict['profits in 2021(million)'].isnumeric()):
+            or not is_float(data_dict['profits in 2021(million)'])):
         print("Invalid profits in 2021(million), data:{}".format(data_dict))
         return True
     return False
+
+
+def is_float(input_string: str) -> bool:
+    try:
+        float(input_string)
+        return True
+    except ValueError:
+        return False
 
 
 def save_data_in_dict(data_list: list, key_name: str) -> dict:
@@ -119,8 +127,8 @@ def t_test_score_minkowski_distance(data_dict: dict) -> dict:
 
 def cal_t_test_score(data_list: list) -> float:
     # get profits list
-    profit_2020_list = [int(x['profits in 2020(million)']) for x in data_list]
-    profit_2021_list = [int(x['profits in 2021(million)']) for x in data_list]
+    profit_2020_list = [float(x['profits in 2020(million)']) for x in data_list]
+    profit_2021_list = [float(x['profits in 2021(million)']) for x in data_list]
     # sample size
     number_of_employees_size = len(profit_2020_list)
     if number_of_employees_size == 0:
@@ -162,7 +170,7 @@ def cal_minkowski_distance(data_list: list, similarity: int) -> float:
         return 0
     # get number of employees list and median salary list
     number_of_employees_list = [int(x['number of employees']) for x in data_list]
-    median_salary_list = [int(x['median salary']) for x in data_list]
+    median_salary_list = [float(x['median salary']) for x in data_list]
     # calculate Minkowski distance
     distance_list = []
     for i in range(len(number_of_employees_list)):
@@ -194,8 +202,8 @@ def category_dictionary(data_dict: dict) -> dict:
 def cal_rank_of_organisation(category_data_list: list) -> dict:
     # add profits_change to the data for sorting
     for data in category_data_list:
-        profit_in_2020 = int(data['profits in 2020(million)'])
-        absolute_profit_change = abs(profit_in_2020 - int(data['profits in 2021(million)']))
+        profit_in_2020 = float(data['profits in 2020(million)'])
+        absolute_profit_change = abs(profit_in_2020 - float(data['profits in 2021(million)']))
         data['profit_percent_change'] = round(cal_absolute_profit_change(absolute_profit_change, profit_in_2020), 4)
     # sort by number of employees desc and then profits_change desc
     rank_list = sorted(category_data_list, key=lambda x: (int(x['number of employees']), x['profit_percent_change']),

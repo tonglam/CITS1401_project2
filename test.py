@@ -54,9 +54,9 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
                         founded                    INTEGER NOT NULL,
                         category                   TEXT NOT NULL,
                         "number of employees"      INTEGER NOT NULL,
-                        "median salary"            INTEGER NOT NULL,
-                        "profits in 2020(million)" INTEGER NOT NULL,
-                        "profits in 2021(million)" INTEGER NOT NULL
+                        "median salary"            REAL NOT NULL,
+                        "profits in 2020(million)" REAL NOT NULL,
+                        "profits in 2021(million)" REAL NOT NULL
                     );
                 ''')
     cursor.execute("DROP VIEW IF EXISTS CountryOrganisations;")
@@ -126,6 +126,9 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
         data = line.split(',')
         # save to a dictionary
         data_dict = dict(zip(header, data))
+        # check data type
+        if invalid(data_dict):
+            continue
         # get organisation id
         organisation_id = data_dict['organisation id']
         if organisation_id not in organisation_id_set:
@@ -163,6 +166,15 @@ def import_data(cursor: sqlite3.Cursor, conn: sqlite3.Connection, csvfile: str =
                 conn.commit()
             except sqlite3.Error:
                 print("Error: insert data failed: {}".format(row))
+
+
+def invalid(data_dict: dict) -> bool:
+    # check organisation id, alphanumeric only
+    if not data_dict['organisation id'].isalnum():
+        return True
+    # check number of employees, integer only
+    if not data_dict['number of employees'].isnumeric():
+        return True
 
 
 def get_duplicated_organisation_id(csvfile: str) -> set:
@@ -310,7 +322,6 @@ def check_empty_with_header_file() -> None:
     # write file
     with open(empty_with_header_file, 'w') as f:
         f.write(header)
-    run_test_case(empty_with_header_file)
     # run test
     run_test_case(empty_with_header_file)
     # remove file
@@ -326,7 +337,6 @@ def check_empty_without_header_file() -> None:
     # write file
     with open(empty_without_header_file, 'w') as f:
         f.write("")
-    run_test_case(empty_without_header_file)
     # run test
     run_test_case(empty_without_header_file)
     # remove file
@@ -351,11 +361,52 @@ def check_case_insensitive_header_file() -> None:
     # write file
     with open(case_insensitive_header_file, 'w') as f:
         f.writelines(read_data)
-    run_test_case(case_insensitive_header_file)
     # run test
     run_test_case(case_insensitive_header_file)
     # remove file
     os.remove(case_insensitive_header_file)
+
+
+def check_change_numeric_type_file() -> None:
+    # input file with change numeric type
+    change_numeric_type_file = "./change_numeric_type.csv"
+    # check file exists
+    if os.path.exists(change_numeric_type_file):
+        os.remove(change_numeric_type_file)
+    header = get_headers()
+    header_list = header.lower().strip().split(',')
+    write_data = [header]
+    # random change numeric value to float
+    with open(default_csvfile, 'r') as f:
+        read_data = f.readlines()
+        data_list = read_data[1:]
+        for i in range(5):
+            sample_index = np.random.randint(0, len(data_list))
+            sample_data = data_list[sample_index]
+            sample_data_list = sample_data.lower().strip().split(',')
+            sample_data_dict = dict(zip(header_list, sample_data_list))
+            sample_data_dict['number of employees'] = str(float(sample_data_dict['number of employees']) + 0.5)
+            sample_data = ",".join(sample_data_dict.values()) + "\n"
+            write_data.append(sample_data)
+        for i in range(5):
+            sample_index = np.random.randint(0, len(data_list))
+            sample_data = data_list[sample_index]
+            sample_data_list = sample_data.lower().strip().split(',')
+            sample_data_dict = dict(zip(header_list, sample_data_list))
+            sample_data_dict['median salary'] = str(float(sample_data_dict['median salary']) + 0.5)
+            sample_data_dict['profits in 2020(million)'] = str(
+                float(sample_data_dict['profits in 2020(million)']) + 0.5)
+            sample_data_dict['profits in 2021(million)'] = str(
+                float(sample_data_dict['profits in 2021(million)']) + 0.5)
+            sample_data = ",".join(sample_data_dict.values()) + "\n"
+            write_data.append(sample_data)
+    # write file
+    with open(change_numeric_type_file, 'w') as f:
+        f.writelines(write_data)
+    # run test
+    run_test_case(change_numeric_type_file)
+    # # remove file
+    os.remove(change_numeric_type_file)
 
 
 def check_missing_values_file() -> None:
@@ -585,20 +636,6 @@ def create_category_dict_edge_test_cases() -> list:
     organisations_record_2_3.set_profits_in_2021_million(organisations_record_2_1.get_profits_in_2021_million())
     edge_test_cases_list.append(organisations_record_2_3)
 
-    # # multiple same rank(not sure how to rank)
-    # organisations_record_3_1 = fake_organisations_data(category="test_category_3")
-    # edge_test_cases_list.append(organisations_record_3_1)
-    # organisations_record_3_2 = fake_organisations_data(category="test_category_3")
-    # organisations_record_3_2.set_number_of_employees(organisations_record_3_1.get_number_of_employees())
-    # organisations_record_3_2.set_profits_in_2020_million(organisations_record_3_1.get_profits_in_2020_million())
-    # organisations_record_3_2.set_profits_in_2021_million(organisations_record_3_1.get_profits_in_2021_million())
-    # edge_test_cases_list.append(organisations_record_3_2)
-    # organisations_record_3_3 = fake_organisations_data(category="test_category_3")
-    # organisations_record_3_3.set_number_of_employees(organisations_record_3_1.get_number_of_employees())
-    # organisations_record_3_3.set_profits_in_2020_million(organisations_record_3_1.get_profits_in_2020_million())
-    # organisations_record_3_3.set_profits_in_2021_million(organisations_record_3_1.get_profits_in_2021_million())
-    # edge_test_cases_list.append(organisations_record_3_3)
-
     return edge_test_cases_list
 
 
@@ -641,6 +678,7 @@ def test_special_files() -> None:
     check_empty_with_header_file()
     check_empty_without_header_file()
     check_case_insensitive_header_file()
+    check_change_numeric_type_file()
     check_missing_values_file()
     check_duplicate_organisation_id_file()
     check_disordered_header_file()
