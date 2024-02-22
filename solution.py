@@ -1,8 +1,3 @@
-"""
-CITS1401 Project 2
-"""
-
-
 def read_file(csvfile: str) -> list:
     try:
         with open(csvfile, 'r') as f:
