@@ -1,7 +1,5 @@
 """
 CITS1401 Project 2
-Full Name: Tong LAN
-Student ID: 24056082
 """
 
 
